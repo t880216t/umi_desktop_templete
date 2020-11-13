@@ -46,7 +46,14 @@ export default defineConfig({
           routes: [
             {
               path: '/',
-              redirect: '/testPage',
+              redirect: '/devicesPage',
+            },
+            {
+              path: '/devicesPage',
+              name: '设备列表',
+              icon: 'MobileOutlined',
+              component: './DevicesPage',
+              hidePageFooter: true,
             },
             {
               path: '/testPage',
