@@ -1,13 +1,16 @@
 // Modules to control application life and create native browser window
+const {app, BrowserWindow, ipcMain} = require('electron')
 const electron = require('electron')
-const {app, BrowserWindow} = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev');
 
+import adb from '../scripts/adb'
+
+let mainWindow
+
 function createWindow () {
-  // Create the browser window.
   const {width, height} = electron.screen.getPrimaryDisplay().workAreaSize
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: Math.ceil(width * 0.8),
     height: Math.ceil(height * 0.8),
     webPreferences: {
@@ -15,38 +18,44 @@ function createWindow () {
       nodeIntegration: true,
       preload: path.join(__dirname, 'preload.js'),
     },
-    frame: true //关闭按钮
+    frame: true
   })
 
-  // and load the index.html of the app.
   mainWindow.loadURL(
     isDev
       ? 'http://localhost:8000'
       : `file://${path.join(__dirname, "../build/index.html")}`
   );
-  // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show()
+    // mainWindow.webContents.openDevTools()
+  })
+  mainWindow.on('close', () => {
+    ipcMain.removeAllListeners('open')
+    ipcMain.removeAllListeners('connect')
+    ipcMain.removeAllListeners('disconnect')
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+
+  mainWindow.webContents.on('did-finish-load', function () {
+    adb.onDevices(mainWindow.webContents)
+    ipcMain.on('connect', adb.connect)
+    ipcMain.on('disconnect', adb.disconnect)
+  })
+
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   createWindow()
 
   app.on('ready', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit()
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

@@ -51,15 +51,14 @@ export default defineConfig({
             {
               path: '/devicesPage',
               name: '设备列表',
-              icon: 'MobileOutlined',
+              icon: 'ClusterOutlined',
               component: './DevicesPage',
-              hidePageFooter: true,
             },
             {
-              path: '/testPage',
-              name: '深度链接测试',
-              icon: 'smile',
-              component: './TestPage',
+              path: '/syncPage',
+              name: '同步列表',
+              icon: 'DeploymentUnitOutlined',
+              component: './DevicesPage',
             },
             {
               path: '/admin',
@@ -81,6 +80,7 @@ export default defineConfig({
               name: 'list.table-list',
               icon: 'table',
               path: '/list',
+              hideInMenu: true,
               component: './ListTableList',
             },
             {

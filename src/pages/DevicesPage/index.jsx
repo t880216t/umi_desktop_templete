@@ -4,17 +4,20 @@ import { connect } from 'umi';
 
 import styles from './index.less'
 
-
 @connect(({ global, loading }) => ({
   global: global,
   loading: loading.models.global,
 }))
 export default class Page extends Component {
-  state = {
+  constructor(props){
+    super(props);
+    this.state = {
+    }
   }
 
-  componentWillMount() {
+  componentDidMount() {
   }
+
 
   render() {
     const { } = this.state;
