@@ -2,11 +2,12 @@ import React, { Component } from 'react';
 import { } from 'antd';
 import { connect } from 'umi';
 
+import DeviceCard from '../../components/DeviceCard'
 import styles from './index.less'
 
 
 @connect(({ global, loading }) => ({
-  global: global,
+  global,
   loading: loading.models.global,
 }))
 export default class Page extends Component {
@@ -32,10 +33,7 @@ export default class Page extends Component {
     return (
       <div>
         {deviceList && deviceList.map(serial => (
-          <div key={serial.id}>
-            <span>{serial.id}</span>
-            <span>{serial.type}</span>
-          </div>
+          <DeviceCard deviceInfo={serial}  />
         ))}
       </div>
     )
