@@ -13,37 +13,30 @@ export default class Page extends Component {
   constructor(props){
     super(props);
     this.state = {
+      deviceList: []
     }
   }
 
   componentDidMount() {
-
+    window.api.send("toMain", 'refresh');
+    window.api.receive("fromMain", (data) => this.listenDevices(data));
   }
 
-  initAdb = () => {
-    this.adbClient.trackDevices()
-      .then(function(tracker) {
-        tracker.on('add', function(device) {
-          console.log('Device %s was plugged in', device.id)
-        })
-        tracker.on('remove', function(device) {
-          console.log('Device %s was unplugged', device.id)
-        })
-        tracker.on('end', function() {
-          console.log('Tracking stopped')
-        })
-      })
-      .catch(function(err) {
-        console.error('Something went wrong:', err.stack)
-      })
+  listenDevices = (data) => {
+    this.setState({deviceList: data})
   }
 
 
   render() {
-    const { } = this.state;
+    const { deviceList } = this.state;
     return (
       <div>
-        test
+        {deviceList && deviceList.map(serial => (
+          <div key={serial.id}>
+            <span>{serial.id}</span>
+            <span>{serial.type}</span>
+          </div>
+        ))}
       </div>
     )
   }

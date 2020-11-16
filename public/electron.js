@@ -1,9 +1,9 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow} = require('electron')
+const {app, BrowserWindow, ipcMain} = require('electron')
 const electron = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev');
-const {onDevices} = require('./adb')
+const {onDevices, listDevices} = require('./adb')
 
 let mainWindow
 
@@ -16,10 +16,22 @@ function createWindow () {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: true,
-      backgroundThrottling: false,
       preload: path.join(__dirname, 'preload.js'),
     },
     frame: true
+  })
+
+  mainWindow.on('close', () => {
+    ipcMain.removeAllListeners('connect')
+    ipcMain.removeAllListeners('disconnect')
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+
+  mainWindow.webContents.on('did-finish-load', function () {
+    onDevices(mainWindow.webContents)
   })
 
   mainWindow.loadURL(
@@ -27,9 +39,13 @@ function createWindow () {
       ? 'http://localhost:8000'
       : `file://${path.join(__dirname, "../build/index.html")}`
   );
-  onDevices()
-}
 
+  ipcMain.on('toMain', function(event, arg) {
+    if (arg === 'refresh') {
+      listDevices(mainWindow.webContents)
+    }
+  });
+}
 app.on('ready', createWindow)
 
 app.on('window-all-closed', () => {
@@ -43,3 +59,4 @@ app.on('activate', () => {
     createWindow()
   }
 })
+
