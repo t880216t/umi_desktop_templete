@@ -58,7 +58,7 @@ export default defineConfig({
               path: '/syncPage',
               name: '同步列表',
               icon: 'DeploymentUnitOutlined',
-              component: './DevicesPage',
+              component: './SyncPage',
             },
             {
               path: '/admin',

@@ -1,10 +1,9 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow, ipcMain} = require('electron')
+const {app, BrowserWindow} = require('electron')
 const electron = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev');
-
-import adb from '../scripts/adb'
+const {onDevices} = require('./adb')
 
 let mainWindow
 
@@ -13,9 +12,11 @@ function createWindow () {
   mainWindow = new BrowserWindow({
     width: Math.ceil(width * 0.8),
     height: Math.ceil(height * 0.8),
+    center: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: true,
+      backgroundThrottling: false,
       preload: path.join(__dirname, 'preload.js'),
     },
     frame: true
@@ -26,36 +27,19 @@ function createWindow () {
       ? 'http://localhost:8000'
       : `file://${path.join(__dirname, "../build/index.html")}`
   );
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show()
-    // mainWindow.webContents.openDevTools()
-  })
-  mainWindow.on('close', () => {
-    ipcMain.removeAllListeners('open')
-    ipcMain.removeAllListeners('connect')
-    ipcMain.removeAllListeners('disconnect')
-  })
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-
-  mainWindow.webContents.on('did-finish-load', function () {
-    adb.onDevices(mainWindow.webContents)
-    ipcMain.on('connect', adb.connect)
-    ipcMain.on('disconnect', adb.disconnect)
-  })
-
+  onDevices()
 }
 
-app.whenReady().then(() => {
-  createWindow()
+app.on('ready', createWindow)
 
-  app.on('ready', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
 })
 
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit()
+app.on('activate', () => {
+  if (mainWindow === null) {
+    createWindow()
+  }
 })
