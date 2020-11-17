@@ -4,6 +4,7 @@ const electron = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev');
 const {onDevices, listDevices} = require('./adb')
+const {device_watch} = require('./android/main')
 
 let mainWindow
 
@@ -31,7 +32,8 @@ function createWindow () {
   })
 
   mainWindow.webContents.on('did-finish-load', function () {
-    onDevices(mainWindow.webContents)
+    // onDevices(mainWindow.webContents)
+    device_watch(mainWindow.webContents)
   })
 
   mainWindow.loadURL(
@@ -42,7 +44,7 @@ function createWindow () {
 
   ipcMain.on('toMain', function(event, common, message) {
     if (common === 'refresh') {
-      listDevices(mainWindow.webContents)
+      // listDevices(mainWindow.webContents)
     }
   });
 }
