@@ -52,7 +52,26 @@ export default defineConfig({
               path: '/devicesPage',
               name: '设备列表',
               icon: 'ClusterOutlined',
-              component: './DevicesPage',
+              routes: [
+                {
+                  path: '/devicesPage',
+                  redirect: '/devicesPage/list',
+                },
+                {
+                  path: '/devicesPage/list',
+                  name: '',
+                  icon: 'mobile',
+                  hideInMenu: true,
+                  component: './DevicesPage',
+                },
+                {
+                  path: '/devicesPage/detail',
+                  name: '设备详情',
+                  icon: 'mobile',
+                  hideInMenu: true,
+                  component: './DevicesPage/DeviceDetail',
+                },
+              ],
             },
             {
               path: '/syncPage',

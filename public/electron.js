@@ -40,8 +40,8 @@ function createWindow () {
       : `file://${path.join(__dirname, "../build/index.html")}`
   );
 
-  ipcMain.on('toMain', function(event, arg) {
-    if (arg === 'refresh') {
+  ipcMain.on('toMain', function(event, common, message) {
+    if (common === 'refresh') {
       listDevices(mainWindow.webContents)
     }
   });

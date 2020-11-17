@@ -21,9 +21,9 @@ export default class Page extends Component {
 
 
   render() {
-    const { deviceInfo } = this.props;
+    const { deviceInfo, onClick } = this.props;
     return (
-      <Card hoverable key={deviceInfo.id} bordered={false}>
+      <Card className={styles.cardContainer} hoverable key={deviceInfo.id} bordered={false} onClick={onClick}>
         <div className={styles.phoneCard}>
           {/*<div  className={styles.phoneImg} style={{backgroundImage: `url(${deviceInfo.thumUrl})`}} alt=""/>*/}
           <div  className={styles.phoneImg} style={{backgroundImage: `url(https://www.apple.com.cn/v/iphone/home/ap/images/overview/compare/compare_iphone_12__btq63lk8td7m_large.jpg)`}} alt=""/>
