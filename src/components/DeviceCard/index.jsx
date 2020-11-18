@@ -28,7 +28,7 @@ export default class Page extends Component {
           {/*<div  className={styles.phoneImg} style={{backgroundImage: `url(${deviceInfo.thumUrl})`}} alt=""/>*/}
           <div  className={styles.phoneImg} style={{backgroundImage: `url(https://www.apple.com.cn/v/iphone/home/ap/images/overview/compare/compare_iphone_12__btq63lk8td7m_large.jpg)`}} alt=""/>
           {/*<h2 className={styles.phoneName}>{deviceInfo.name}</h2>*/}
-          <h2 className={styles.phoneName}>{deviceInfo.type}</h2>
+          <h2 className={styles.phoneName}>{deviceInfo.name}</h2>
           <span className={styles.phoneDesc}>{deviceInfo.id}</span>
         </div>
       </Card>

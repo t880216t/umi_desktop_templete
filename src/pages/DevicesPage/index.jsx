@@ -3,6 +3,8 @@ import React, { Component } from 'react';
 import { } from 'antd';
 import { connect, history } from 'umi';
 
+import {} from 'minicap-driver'
+
 import DeviceCard from '../../components/DeviceCard'
 
 import styles from './index.less'
@@ -37,7 +39,12 @@ export default class Page extends Component {
       <PageHeaderWrapper content="">
         <div>
           {deviceList && deviceList.map(serial => (
-            <DeviceCard deviceInfo={serial} onClick={() => history.push(`/devicesPage/detail?deviceId=${serial.id}&port=${serial.port}`) } />
+            <DeviceCard
+              deviceInfo={serial}
+              onClick={
+                () => history.push(`/devicesPage/detail?deviceId=${serial.id}&localPort=${serial.localPort}&currentIp=${serial.currentIp}`)
+              }
+            />
           ))}
         </div>
       </PageHeaderWrapper>

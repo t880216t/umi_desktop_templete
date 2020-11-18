@@ -3,8 +3,7 @@ const {app, BrowserWindow, ipcMain} = require('electron')
 const electron = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev');
-const {onDevices, listDevices} = require('./adb')
-const {device_watch} = require('./android/main')
+const {device_watch, listDevices, initSystem} = require('./android/main')
 
 let mainWindow
 
@@ -32,7 +31,7 @@ function createWindow () {
   })
 
   mainWindow.webContents.on('did-finish-load', function () {
-    // onDevices(mainWindow.webContents)
+    initSystem()
     device_watch(mainWindow.webContents)
   })
 
@@ -44,7 +43,7 @@ function createWindow () {
 
   ipcMain.on('toMain', function(event, common, message) {
     if (common === 'refresh') {
-      // listDevices(mainWindow.webContents)
+      listDevices(mainWindow.webContents)
     }
   });
 }
