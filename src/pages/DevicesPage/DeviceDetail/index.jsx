@@ -1,14 +1,12 @@
 import React, { Component } from 'react';
-import { Card } from 'antd';
+import { } from 'antd';
 import { connect } from 'umi';
-import * as minicapDriver from 'minicap-driver'
-import { minicapClient } from 'minicap-driver/dist/client'
 
 import styles from './index.less'
 
 
 @connect(({ global, loading }) => ({
-  global: global,
+  global,
   loading: loading.models.global,
 }))
 export default class Page extends Component {
@@ -26,6 +24,7 @@ export default class Page extends Component {
       deviceId, address
     },() => {
       this.syncModalDisplay(deviceId, address)
+      this.syncTouch(deviceId, address)
     })
   }
 
@@ -66,11 +65,115 @@ export default class Page extends Component {
     }
   }
 
+  coords = (boundingW, boundingH, relX, relY, rotation) => {
+    let w;
+    let h;
+    let x;
+    let y;
+    switch (rotation) {
+      case 0:
+        w = boundingW
+        h = boundingH
+        x = relX
+        y = relY
+        break
+      case 90:
+        w = boundingH
+        h = boundingW
+        x = boundingH - relY
+        y = relX
+        break
+      case 180:
+        w = boundingW
+        h = boundingH
+        x = boundingW - relX
+        y = boundingH - relY
+        break
+      case 270:
+        w = boundingH
+        h = boundingW
+        x = relY
+        y = boundingW - relX
+        break
+      default:
+        break
+    }
+
+    return {
+      xP: x / w,
+      yP: y / h,
+    }
+  }
+
+  syncTouch = (deviceId, address) => {
+    const element = this[`modal${deviceId}`];
+    if (!element) {
+      return
+    }
+
+    const ws = new WebSocket(`ws://${address}/minitouch`)
+
+    ws.onopen = () => {
+      console.log('minitouch connected')
+      ws.send(JSON.stringify({
+        operation: 'r',
+      }))
+      element.addEventListener('mousedown', mouseDownListener)
+    }
+    ws.onmessage = () => {
+      if (!this[`modal${deviceId}`]) {
+        ws.close()
+      }
+    }
+
+    ws.onclose = () => {
+      console.log('minitouch closed')
+      element.removeEventListener('mousedown', mouseDownListener)
+    }
+
+    const touchSync = (operation, event) => {
+      let e = event;
+      if (e.originalEvent) {
+        e = e.originalEvent
+      }
+      e.preventDefault()
+
+      const x = e.offsetX;
+      const y = e.offsetY
+      const w = e.target.clientWidth;
+      const h = e.target.clientHeight
+      const scaled = this.coords(w, h, x, y, this.rotation);
+      ws.send(JSON.stringify({
+        operation, // u, d, c, w
+        index: 0,
+        pressure: 0.5,
+        xP: scaled.xP,
+        yP: scaled.yP,
+      }))
+      ws.send(JSON.stringify({ operation: 'c' }))
+    }
+
+    function mouseMoveListener(event) {
+      touchSync('m', event)
+    }
+
+    function mouseUpListener(event) {
+      touchSync('u', event)
+      element.removeEventListener('mousemove', mouseMoveListener);
+      document.removeEventListener('mouseup', mouseUpListener);
+    }
+
+    function mouseDownListener(event) {
+      touchSync('d', event)
+      element.addEventListener('mousemove', mouseMoveListener);
+      document.addEventListener('mouseup', mouseUpListener)
+    }
+  }
 
   render() {
     const { address, deviceId } = this.state;
     return (
-      <Card>
+      <div className={styles.detailWarp} >
         <div className={styles.deviceContain}>
           <img
             ref={ref => {
@@ -81,7 +184,9 @@ export default class Page extends Component {
             alt=""
           />
         </div>
-      </Card>
+        <div className={styles.actionContain}></div>
+        <div className={styles.otherContain}></div>
+      </div>
     )
   }
 }

@@ -21,6 +21,10 @@ const device_watch = (sender) => {
       })
       tracker.on('remove', (device) => {
         console.log('Device %s was unplugged', device.id)
+        if (devicesList.hasOwnProperty(device.id)){
+          delete devicesList[device.id];
+        }
+        sender.send('fromMain', devicesList)
       })
       tracker.on('end', () => {
         console.log('Tracking stopped')
@@ -33,18 +37,19 @@ const device_watch = (sender) => {
 
 const listDevices = (sender) => {
   client.listDevices()
-    .then(function (devices) {
+    .then(async function (devices) {
       console.log('init listDevices ')
-      devices && devices.forEach(async device => {
-        if (device.type === 'device'){
-          if (!devicesList.hasOwnProperty(device.id)){
+      for (let i = 0; i< devices.length; i++){
+        const device = devices[i]
+        if (!devicesList.hasOwnProperty(device.id)){
+          if (device.type === 'device'){
             const newDevice = await serial(device)
             devicesList[newDevice.id] = newDevice
           }
-        } else {
+        }else if(device.type !== 'device'){
           devicesList[devices.id] = devices
         }
-      })
+      }
       sender.send('fromMain', devicesList)
     })
     .catch(function (err) {

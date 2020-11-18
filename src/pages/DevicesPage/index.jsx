@@ -24,8 +24,8 @@ export default class Page extends Component {
 
   componentDidMount() {
     if (window.api){
-      window.api.send("toMain", 'refresh');
       window.api.receive("fromMain", (data) => this.listenDevices(data));
+      setTimeout(() => {window.api.send("toMain", 'refresh')}, 1000)
     }
   }
 
