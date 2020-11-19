@@ -31,10 +31,10 @@ export default class Page extends Component {
           avatar={<Avatar style={{backgroundColor: '#ffffff'}} shape="square" size={64} icon={<AndroidFilled style={{color: '#87d068'}} />}/>}
           title={deviceInfo.name}
           description={
-            <Descriptions size={'small'} column={{ xxl: 1, xl: 1, lg: 1, md: 1, sm: 1, xs: 1 }}>
-              <Descriptions.Item label="id">{deviceInfo.id}</Descriptions.Item>
-              <Descriptions.Item label="version">{deviceInfo.version}</Descriptions.Item>
-              <Descriptions.Item label="size">{`${deviceInfo.width} x ${deviceInfo.height}`}</Descriptions.Item>
+            <Descriptions size="small" column={{ xxl: 1, xl: 1, lg: 1, md: 1, sm: 1, xs: 1 }}>
+              <Descriptions.Item label="id"><span className={styles.infoText}>{deviceInfo.id}</span></Descriptions.Item>
+              <Descriptions.Item label="version"><span className={styles.infoText}>{deviceInfo.version}</span></Descriptions.Item>
+              <Descriptions.Item label="size"><span className={styles.infoText}>{`${deviceInfo.width} x ${deviceInfo.height}`}</span></Descriptions.Item>
             </Descriptions>
           }
         />

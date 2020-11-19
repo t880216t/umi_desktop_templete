@@ -3,8 +3,6 @@ import React, { Component } from 'react';
 import { List } from 'antd';
 import { connect, history } from 'umi';
 
-import {} from 'minicap-driver'
-
 import DeviceCard from '../../components/DeviceCard'
 
 import styles from './index.less'
@@ -25,7 +23,7 @@ export default class Page extends Component {
   componentDidMount() {
     if (window.api){
       window.api.receive("fromMain", (data) => this.listenDevices(data));
-      setTimeout(() => {window.api.send("toMain", 'refresh')}, 1000)
+      setTimeout(() => {window.api.send("toMain", 'refresh')}, 300)
     }
   }
 

@@ -1,3 +1,4 @@
+import {PageHeaderWrapper} from "@ant-design/pro-layout";
 import React, { Component } from 'react';
 import { } from 'antd';
 import { connect } from 'umi';
@@ -23,9 +24,9 @@ export default class Page extends Component {
   render() {
     const { } = this.state;
     return (
-      <div>
+      <PageHeaderWrapper title="同步设备">
         test11232131
-      </div>
+      </PageHeaderWrapper>
     )
   }
 }

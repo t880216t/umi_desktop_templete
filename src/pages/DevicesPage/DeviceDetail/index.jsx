@@ -7,7 +7,10 @@ import {
   LeftOutlined,
   HomeOutlined,
   RetweetOutlined,
+  OrderedListOutlined,
 } from '@ant-design/icons';
+
+import DeviceList from '../DeviceList'
 
 import styles from './index.less'
 
@@ -21,6 +24,8 @@ export default class Page extends Component {
     super(props);
     this.state = {
       address: '',
+      showSelect: false,
+      selectedDevices: [],
     }
     this.miniCapWs = null
     this.miniTouchWs = null
@@ -59,6 +64,27 @@ export default class Page extends Component {
       mode: 'cors',
       cache: 'no-cache',
     })
+  }
+
+  handleShowSelect = () => {
+    this.setState({showSelect: true})
+  }
+
+
+  handleSelectOk = () => {
+    console.log('sss')
+  }
+
+
+  handleSelectCancel = () => {
+    this.setState({
+      showSelect: false,
+    })
+  }
+
+
+  handleSelectChange = (e) => {
+    this.setState({selectedDevices: e})
   }
 
   syncModalDisplay = (deviceId, address) => {
@@ -234,7 +260,7 @@ export default class Page extends Component {
   }
 
   render() {
-    const { address, deviceId } = this.state;
+    const { address, deviceId, showSelect, selectedDevices } = this.state;
     return (
       <div className={styles.detailWarp} >
         <div className={styles.deviceContain}>
@@ -273,14 +299,27 @@ export default class Page extends Component {
         </div>
         <div className={styles.actionContain1}>
           <Card bordered={false} bodyStyle={{maxHeight: '95vh', padding: 5,  width: '120%', overflowY: 'scroll'}}>
-            <Tooltip placement="bottom" title={`用于屏幕旋转后刷新位置`}>
+            <Tooltip placement="right" title="刷新主控机屏幕旋转位置">
               <Card.Grid className={styles.actionB} onClick={() => this.getRotattion(address)} style={{textAlign: 'center', width: '98%'}}>
                 <RetweetOutlined style={{fontSize: 24}} />
+              </Card.Grid>
+            </Tooltip>
+            <Tooltip placement="right" title="选择设备，进行同步操作">
+              <Card.Grid className={styles.actionB} onClick={() => this.handleShowSelect()} style={{textAlign: 'center', width: '98%'}}>
+                <OrderedListOutlined style={{fontSize: 24}} />
               </Card.Grid>
             </Tooltip>
           </Card>
         </div>
         <div className={styles.otherContain}></div>
+        <DeviceList
+          currentId={deviceId}
+          visible={showSelect}
+          selectedRowKeys={selectedDevices}
+          onOk={() => this.handleSelectOk()}
+          onCancel={() => this.handleSelectCancel()}
+          onSelectChange={(e) => this.handleSelectChange(e)}
+        />
       </div>
     )
   }
