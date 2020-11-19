@@ -1,6 +1,6 @@
 import {PageHeaderWrapper} from "@ant-design/pro-layout";
 import React, { Component } from 'react';
-import { } from 'antd';
+import { List } from 'antd';
 import { connect, history } from 'umi';
 
 import {} from 'minicap-driver'
@@ -36,17 +36,29 @@ export default class Page extends Component {
   render() {
     const { deviceList } = this.state;
     return (
-      <PageHeaderWrapper content="">
-        <div>
-          {deviceList && deviceList.map(serial => (
-            <DeviceCard
-              deviceInfo={serial}
-              onClick={
-                () => history.push(`/devicesPage/detail?deviceId=${serial.id}&localPort=${serial.localPort}&currentIp=${serial.currentIp}`)
-              }
-            />
-          ))}
-        </div>
+      <PageHeaderWrapper title="设备列表">
+        <List
+          grid={{
+            gutter: 16,
+            xs: 1,
+            sm: 3,
+            md: 4,
+            lg: 4,
+            xl: 5,
+            xxl: 5,
+          }}
+          dataSource={deviceList}
+          renderItem={serial => (
+            <List.Item>
+              <DeviceCard
+                deviceInfo={serial}
+                onClick={
+                  () => history.push(`/devicesPage/detail?deviceId=${serial.id}&localPort=${serial.localPort}&currentIp=${serial.currentIp}`)
+                }
+              />
+            </List.Item>
+          )}
+        />
       </PageHeaderWrapper>
     )
   }

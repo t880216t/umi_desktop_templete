@@ -1,6 +1,13 @@
 import React, { Component } from 'react';
-import { } from 'antd';
+import { Row, Col, Card, Tooltip } from 'antd';
 import { connect } from 'umi';
+import {
+  SwitcherOutlined,
+  PoweroffOutlined,
+  LeftOutlined,
+  HomeOutlined,
+  RetweetOutlined,
+} from '@ant-design/icons';
 
 import styles from './index.less'
 
@@ -13,8 +20,10 @@ export default class Page extends Component {
   constructor(props){
     super(props);
     this.state = {
-      address: ''
+      address: '',
     }
+    this.miniCapWs = null
+    this.miniTouchWs = null
   }
 
   componentDidMount() {
@@ -23,18 +32,43 @@ export default class Page extends Component {
     this.setState({
       deviceId, address
     },() => {
+      this.getRotattion(address)
       this.syncModalDisplay(deviceId, address)
       this.syncTouch(deviceId, address)
     })
   }
 
+  componentWillUnmount() {
+    if (this.miniCapWs){
+      this.miniCapWs.close()
+    }
+    if (this.miniTouchWs){
+      this.miniTouchWs.close()
+    }
+    if (this.reconnectMiniCapTimer){
+      clearInterval(this.reconnectMiniCapTimer)
+    }
+    if (this.reconnectMiniTouchTimer){
+      clearInterval(this.reconnectMiniTouchTimer)
+    }
+  }
+
+  getRotattion = (deviceUrl) => {
+    fetch(`http://${deviceUrl}/info/rotation`, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+    })
+  }
+
   syncModalDisplay = (deviceId, address) => {
     const ws = new WebSocket(`ws://${address}/minicap/broadcast`)
+    this.miniCapWs = ws
     ws.onclose = () => {
       console.log('close')
     }
     ws.onerror = function () {
-
+      this.reconnectMiniCapTimer = setInterval(() => this.syncTouch(deviceId, address), 1000)
     }
     ws.onmessage = message => {
       if (!this[`modal${deviceId}`]) {
@@ -112,6 +146,7 @@ export default class Page extends Component {
     }
 
     const ws = new WebSocket(`ws://${address}/minitouch`)
+    this.miniTouchWs = ws
 
     ws.onopen = () => {
       console.log('minitouch connected')
@@ -119,6 +154,9 @@ export default class Page extends Component {
         operation: 'r',
       }))
       element.addEventListener('mousedown', mouseDownListener)
+    }
+    ws.onerror = function () {
+      this.reconnectMiniTouchTimer = setInterval(() => this.syncTouch(deviceId, address), 1000)
     }
     ws.onmessage = () => {
       if (!this[`modal${deviceId}`]) {
@@ -170,6 +208,31 @@ export default class Page extends Component {
     }
   }
 
+  postAction = (deviceUrl, actionName) => {
+    const actionEvent = () => {
+      switch (actionName) {
+        case 'recent':
+          return 'input keyevent 187'
+        case 'home':
+          return 'input keyevent 3'
+        case 'back':
+          return 'input keyevent 4'
+        case 'power':
+          return 'input keyevent 26'
+        default:
+          return ''
+      }
+    }
+    fetch(`http://${deviceUrl}/shell?command=${actionEvent()}`, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-cache',
+    })
+      .then(() => {
+        this.getRotattion(deviceUrl)
+      })
+  }
+
   render() {
     const { address, deviceId } = this.state;
     return (
@@ -183,8 +246,40 @@ export default class Page extends Component {
             src={`http://${address}/screenshot?t=${new Date().getTime()}`}
             alt=""
           />
+          <div className={styles.actionContain}>
+            <Row>
+              <Col span={6}>
+                <div className={styles.actionWarpper} onClick={() => this.postAction(address, 'recent')}>
+                  <SwitcherOutlined />
+                </div>
+              </Col>
+              <Col span={6}>
+                <div className={styles.actionWarpper} onClick={() => this.postAction(address, 'home')}>
+                  <HomeOutlined />
+                </div>
+              </Col>
+              <Col span={6}>
+                <div className={styles.actionWarpper} onClick={() => this.postAction(address, 'back')}>
+                  <LeftOutlined />
+                </div>
+              </Col>
+              <Col span={6}>
+                <div className={styles.actionWarpper} onClick={() => this.postAction(address, 'power')}>
+                  <PoweroffOutlined />
+                </div>
+              </Col>
+            </Row>
+          </div>
         </div>
-        <div className={styles.actionContain}></div>
+        <div className={styles.actionContain1}>
+          <Card bordered={false} bodyStyle={{maxHeight: '95vh', padding: 5,  width: '120%', overflowY: 'scroll'}}>
+            <Tooltip placement="bottom" title={`用于屏幕旋转后刷新位置`}>
+              <Card.Grid className={styles.actionB} onClick={() => this.getRotattion(address)} style={{textAlign: 'center', width: '98%'}}>
+                <RetweetOutlined style={{fontSize: 24}} />
+              </Card.Grid>
+            </Tooltip>
+          </Card>
+        </div>
         <div className={styles.otherContain}></div>
       </div>
     )

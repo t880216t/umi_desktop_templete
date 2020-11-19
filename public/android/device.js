@@ -35,6 +35,23 @@ async function getprop(device) {
     })
 }
 
+async function getScreenSize(device) {
+  return client.framebuffer(device.id)
+    .then(function(framebuffer) {
+      const {meta} = framebuffer
+      let width=0
+      let height=0
+      if (meta.version === 2){
+        width = meta.height
+        height = meta.red_offset
+      }else {
+        width = meta.width
+        height = meta.height
+      }
+      return {width, height}
+    })
+}
+
 async function pushFileToDevice(device, path, dest ) {
   return client.push(device.id, path, dest)
     .then(function(transfer) {
@@ -257,10 +274,17 @@ async function createTcpProxy(localport, remotehost, remoteport){
     });
 
     remotesocket.on('data', function(data) {
-      let flushed = localsocket.write(data);
-      if (!flushed) {
-        remotesocket.pause();
+      try{
+        if (localsocket){
+          let flushed = localsocket.write(data);
+          if (!flushed) {
+            remotesocket.pause();
+          }
+        }
+      }catch (e) {
+        console.log("err:", e)
       }
+
     });
 
     localsocket.on('drain', function() {
@@ -313,10 +337,13 @@ async function init(device) {
 
 const serial = async (device) => {
   const properties = await getprop(device)
+  const {width, height} = await getScreenSize(device)
   console.log(properties)
   let newDevice = properties
   newDevice['id'] = device.id
   newDevice['type'] = device.type
+  newDevice['width'] = width
+  newDevice['height'] = height
   newDevice = await init(newDevice)
   return newDevice
 }

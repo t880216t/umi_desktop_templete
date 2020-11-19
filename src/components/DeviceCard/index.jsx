@@ -1,6 +1,9 @@
 import React, { Component } from 'react';
-import { Card } from 'antd';
+import { Card, Avatar, Descriptions } from 'antd';
 import { connect } from 'umi';
+import {
+  AndroidFilled
+} from '@ant-design/icons';
 
 import styles from './index.less'
 
@@ -24,13 +27,17 @@ export default class Page extends Component {
     const { deviceInfo, onClick } = this.props;
     return (
       <Card className={styles.cardContainer} hoverable key={deviceInfo.id} bordered={false} onClick={onClick}>
-        <div className={styles.phoneCard}>
-          {/*<div  className={styles.phoneImg} style={{backgroundImage: `url(${deviceInfo.thumUrl})`}} alt=""/>*/}
-          <div  className={styles.phoneImg} style={{backgroundImage: `url(https://www.apple.com.cn/v/iphone/home/ap/images/overview/compare/compare_iphone_12__btq63lk8td7m_large.jpg)`}} alt=""/>
-          {/*<h2 className={styles.phoneName}>{deviceInfo.name}</h2>*/}
-          <h2 className={styles.phoneName}>{deviceInfo.name}</h2>
-          <span className={styles.phoneDesc}>{deviceInfo.id}</span>
-        </div>
+        <Card.Meta
+          avatar={<Avatar style={{backgroundColor: '#ffffff'}} shape="square" size={64} icon={<AndroidFilled style={{color: '#87d068'}} />}/>}
+          title={deviceInfo.name}
+          description={
+            <Descriptions size={'small'} column={{ xxl: 1, xl: 1, lg: 1, md: 1, sm: 1, xs: 1 }}>
+              <Descriptions.Item label="id">{deviceInfo.id}</Descriptions.Item>
+              <Descriptions.Item label="version">{deviceInfo.version}</Descriptions.Item>
+              <Descriptions.Item label="size">{`${deviceInfo.width} x ${deviceInfo.height}`}</Descriptions.Item>
+            </Descriptions>
+          }
+        />
       </Card>
     )
   }
