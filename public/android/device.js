@@ -256,7 +256,33 @@ async function init_binaries(device){
 }
 
 async function init_apks(device){
-
+  client.isInstalled(device.id,'com.buscode.whatsinput')
+    .then(installed => {
+      if (!installed){
+        console.log("install whatsinput to ", device.id)
+        const fileName = `WhatsInput_v1.0.apk`
+        const filePath = path.join(__dirname, 'vendor', fileName)
+        client.install(device.id, filePath)
+      }
+    })
+  client.isInstalled(device.id,'com.github.uiautomator')
+    .then(installed => {
+      if (!installed){
+        const fileName = `app-uiautomator.apk`
+        const filePath = path.join(__dirname, 'vendor', fileName)
+        console.log("install uiautomator to ", device.id)
+        client.install(device.id, filePath)
+      }
+    })
+  client.isInstalled(device.id,'com.github.uiautomator.test')
+    .then(installed => {
+      if (!installed){
+        const fileName = `app-uiautomator-test.apk`
+        const filePath = path.join(__dirname, 'vendor', fileName)
+        console.log("install uiautomator test to ", device.id)
+        client.install(device.id, filePath)
+      }
+    })
 }
 
 async function stopAgent(device) {
