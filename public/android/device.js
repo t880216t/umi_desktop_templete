@@ -93,7 +93,7 @@ const mirror_download = async (url, filePath) => {
 
 const download = async (fileURL, filePath) => {
   //下载保存的文件路径
-  let fileSavePath = path.join(__dirname, path.basename(fileURL));
+  let fileSavePath = path.join(__dirname, 'vendor', path.basename(fileURL));
   //缓存文件路径
   let tmpFileSavePath = fileSavePath + ".tmp";
   //创建写入流
@@ -147,7 +147,7 @@ const unzip_stf = async (zip_path, unpackPath) => {
   if(!fs.existsSync(zip_path))  return;
   //创建解压缩对象
   try {
-    const resolvedUnpackPath = path.resolve('public', 'android', unpackPath);
+    const resolvedUnpackPath = path.resolve(unpackPath);
     console.log('resolvedUnpackPath :', resolvedUnpackPath)
     await extract(zip_path, { dir: resolvedUnpackPath })
     console.log('Extraction complete')
@@ -162,7 +162,7 @@ const unzip_atx = async (zip_path, unpackPath) => {
   if(!fs.existsSync(zip_path))  return;
   //创建解压缩对象
   try {
-    const resolvedUnpackPath = path.resolve('public', 'android', unpackPath);
+    const resolvedUnpackPath = path.resolve(unpackPath);
     console.log('resolvedUnpackPath :', resolvedUnpackPath)
     decompress(zip_path, resolvedUnpackPath, {
       plugins: [
@@ -179,7 +179,8 @@ const unzip_atx = async (zip_path, unpackPath) => {
 
 const get_stf_binaries = async () => {
   const version = libConfig.stf_binaries
-  const filePath = `stf-binaries-${version}.zip`
+  const fileName = `stf-binaries-${version}.zip`
+  const filePath = path.join(__dirname, 'vendor', fileName)
   if (fs.existsSync(filePath)) return;
   await mirror_download(`https://github.com/openatx/stf-binaries/archive/${version}.zip`, filePath)
 }
@@ -188,16 +189,44 @@ const get_atx_agent= async () => {
   const version = libConfig.atx_agent
   const abiList = ["386", "amd64", "armv6", "armv7"]
   for (var i = 0; i < abiList.length; i++) {
-    const filePath = `atx-agent-${version}-${abiList[i]}.tar.gz`
+    const fileName = `atx-agent-${version}-${abiList[i]}.tar.gz`
+    const filePath = path.join(__dirname, 'vendor', fileName)
     if (fs.existsSync(filePath)) return;
     await mirror_download(`https://github.com/openatx/atx-agent/releases/download/${version}/atx-agent_${version}_linux_${abiList[i]}.tar.gz`, filePath)
   }
 }
 
+const get_whatsInput = async () => {
+  const fileName = `WhatsInput_v1.0.apk`
+  const filePath = path.join(__dirname, 'vendor', fileName)
+  if (fs.existsSync(filePath)) return;
+  await mirror_download(`https://github.com/openatx/atxserver2-android-provider/releases/download/v0.2.0/WhatsInput_v1.0.apk`, filePath)
+}
+
+const get_uiautomator_apk = async () => {
+  const fileName = `app-uiautomator.apk`
+  const filePath = path.join(__dirname, 'vendor', fileName)
+  if (fs.existsSync(filePath)) return;
+  await mirror_download(`https://github.com/openatx/android-uiautomator-server/releases/download/2.3.1/app-uiautomator.apk`, filePath)
+}
+
+const get_uiautomator_test_apk = async () => {
+  const fileName = `app-uiautomator-test.apk`
+  const filePath = path.join(__dirname, 'vendor', fileName)
+  if (fs.existsSync(filePath)) return;
+  await mirror_download(`https://github.com/openatx/android-uiautomator-server/releases/download/2.3.1/app-uiautomator-test.apk`, filePath)
+}
+
+const get_apks= async () => {
+  await get_whatsInput()
+  await get_uiautomator_apk()
+  await get_uiautomator_test_apk()
+}
+
 async function init_binaries(device){
   const version = libConfig.stf_binaries
   const atx_agent_version = libConfig.atx_agent
-  const zip_folder = `public/android/stf-binaries-${version}/stf-binaries-${version}`
+  const zip_folder = `public/android/vendor/stf-binaries-${version}/stf-binaries-${version}`
   const preMinicap = zip_folder + "/node_modules/minicap-prebuilt/prebuilt/"
   const preMiniTouch = zip_folder + "/node_modules/minitouch-prebuilt/prebuilt/"
   const minicapSo = preMinicap + device.abi + "/lib/android-" + device.sdk + "/minicap.so"
@@ -221,9 +250,13 @@ async function init_binaries(device){
     console.log("no avaliable abilist", device.abi)
     return
   }
-  const atx_agent_file = `public/android/${abimaps[device.abi]}/atx-agent`
+  const atx_agent_file = `public/android/vendor/${abimaps[device.abi]}/atx-agent`
   await pushFileToDevice(device, atx_agent_file, '/data/local/tmp/atx-agent')
   await chmodDeviceFile(device, '/data/local/tmp/atx-agent')
+}
+
+async function init_apks(device){
+
 }
 
 async function stopAgent(device) {
@@ -319,6 +352,7 @@ async function createTcpProxy(localport, remotehost, remoteport){
 async function initSystem() {
   await get_stf_binaries()
   await get_atx_agent()
+  await get_apks()
 
 }
 
@@ -326,6 +360,7 @@ async function init(device) {
   const freePort = await aport()
   const currentIp = await getIPAdress()
   await init_binaries(device)
+  await init_apks(device)
   const localPort = await init_forwards(device, freePort)
   await stopAgent(device)
   await startAgent(device)
