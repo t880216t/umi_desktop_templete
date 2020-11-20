@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 
 import DeviceList from '../DeviceList'
+import SyncDeviceList from '../SyncDeviceList'
 
 import styles from './index.less'
 
@@ -26,6 +27,7 @@ export default class Page extends Component {
       address: '',
       showSelect: false,
       selectedDevices: [],
+      syncDevices: [],
     }
     this.miniCapWs = null
     this.miniTouchWs = null
@@ -71,8 +73,12 @@ export default class Page extends Component {
   }
 
 
-  handleSelectOk = () => {
-    console.log('sss')
+  handleSelectOk = (devices) => {
+    this.setState({syncDevices: devices, showSelect: false})
+  }
+
+  syncTouch2Device = (id, adddres) => {
+    this.syncTouch2OneDevice(id, adddres)
   }
 
 
@@ -94,7 +100,7 @@ export default class Page extends Component {
       console.log('close')
     }
     ws.onerror = function () {
-      this.reconnectMiniCapTimer = setInterval(() => this.syncTouch(deviceId, address), 1000)
+      // this.reconnectMiniCapTimer = setInterval(() => this.syncModalDisplay(deviceId, address), 1000)
     }
     ws.onmessage = message => {
       if (!this[`modal${deviceId}`]) {
@@ -165,6 +171,21 @@ export default class Page extends Component {
     }
   }
 
+  syncTouch2OneDevice = (deviceId, address) => {
+    this[`ws${deviceId}`] = new WebSocket(`ws://${address}/minitouch`)
+    this[`ws${deviceId}`].onopen = () => {
+      console.log('sync minitouch connected')
+    }
+    this[`ws${deviceId}`].onerror = function () {
+      // this.reconnectMiniTouchTimer = setInterval(() => this.syncTouch(deviceId, address), 1000)
+    }
+
+    this[`ws${deviceId}`].onclose = () => {
+      console.log('sync minitouch closed')
+    }
+  }
+
+
   syncTouch = (deviceId, address) => {
     const element = this[`modal${deviceId}`];
     if (!element) {
@@ -182,7 +203,7 @@ export default class Page extends Component {
       element.addEventListener('mousedown', mouseDownListener)
     }
     ws.onerror = function () {
-      this.reconnectMiniTouchTimer = setInterval(() => this.syncTouch(deviceId, address), 1000)
+      // this.reconnectMiniTouchTimer = setInterval(() => this.syncTouch(deviceId, address), 1000)
     }
     ws.onmessage = () => {
       if (!this[`modal${deviceId}`]) {
@@ -207,14 +228,24 @@ export default class Page extends Component {
       const w = e.target.clientWidth;
       const h = e.target.clientHeight
       const scaled = this.coords(w, h, x, y, this.rotation);
-      ws.send(JSON.stringify({
+      const location = JSON.stringify({
         operation, // u, d, c, w
         index: 0,
         pressure: 0.5,
         xP: scaled.xP,
         yP: scaled.yP,
-      }))
+      })
+      ws.send(location)
       ws.send(JSON.stringify({ operation: 'c' }))
+      const {selectedDevices, showSelect} = this.state;
+      if (selectedDevices&&!showSelect){
+        selectedDevices & selectedDevices.forEach(id => {
+          if (this[`ws${id}`]){
+            this[`ws${id}`].send(location)
+            this[`ws${id}`].send(JSON.stringify({ operation: 'c' }))
+          }
+        })
+      }
     }
 
     function mouseMoveListener(event) {
@@ -260,7 +291,7 @@ export default class Page extends Component {
   }
 
   render() {
-    const { address, deviceId, showSelect, selectedDevices } = this.state;
+    const { address, deviceId, showSelect, selectedDevices, syncDevices } = this.state;
     return (
       <div className={styles.detailWarp} >
         <div className={styles.deviceContain}>
@@ -311,15 +342,19 @@ export default class Page extends Component {
             </Tooltip>
           </Card>
         </div>
-        <div className={styles.otherContain}></div>
-        <DeviceList
-          currentId={deviceId}
-          visible={showSelect}
-          selectedRowKeys={selectedDevices}
-          onOk={() => this.handleSelectOk()}
-          onCancel={() => this.handleSelectCancel()}
-          onSelectChange={(e) => this.handleSelectChange(e)}
-        />
+        <div className={styles.otherContain}>
+          {syncDevices && (<SyncDeviceList deviceList={syncDevices} syncTouch2Device={this.syncTouch2Device}/>)}
+        </div>
+        {showSelect && (
+          <DeviceList
+            currentId={deviceId}
+            visible={showSelect}
+            selectedRowKeys={selectedDevices}
+            onOk={(e) => this.handleSelectOk(e)}
+            onCancel={() => this.handleSelectCancel()}
+            onSelectChange={(e) => this.handleSelectChange(e)}
+          />
+        )}
       </div>
     )
   }

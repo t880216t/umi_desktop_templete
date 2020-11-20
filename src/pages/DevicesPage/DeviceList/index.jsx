@@ -28,8 +28,13 @@ export default class Page extends Component {
     this.setState({deviceList: Object.values(data)}, () => console.log(data) )
   }
 
-  onSelectChange = e => {
-    console.log(e)
+  handleOk = () => {
+    const {selectedRowKeys} = this.props;
+    const {deviceList} = this.state;
+    const selectDevices = deviceList.filter(item => selectedRowKeys.includes(item.id))
+    if (this.props.onOk){
+      this.props.onOk(selectDevices)
+    }
   }
 
 
@@ -67,8 +72,9 @@ export default class Page extends Component {
       <Modal
         title="可同步设备列表"
         centered
+        destroyOnClose
         visible={visible}
-        onOk={() => onOk()}
+        onOk={() => this.handleOk()}
         onCancel={() => onCancel()}
         width={1000}
       >
