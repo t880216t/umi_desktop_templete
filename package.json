@@ -83,7 +83,8 @@
     "umi-request": "^1.0.8",
     "unzip": "^0.1.11",
     "use-merge-value": "^1.0.1",
-    "wait-on": "^5.2.0"
+    "wait-on": "^5.2.0",
+    "xml2map": "^1.0.2"
   },
   "devDependencies": {
     "@ant-design/pro-cli": "^1.0.18",

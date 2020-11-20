@@ -343,7 +343,7 @@ export default class Page extends Component {
           </Card>
         </div>
         <div className={styles.otherContain}>
-          {syncDevices && (<SyncDeviceList deviceList={syncDevices} syncTouch2Device={this.syncTouch2Device}/>)}
+          {syncDevices && syncDevices.length >0 && (<SyncDeviceList deviceList={syncDevices} syncTouch2Device={this.syncTouch2Device}/>)}
         </div>
         {showSelect && (
           <DeviceList
