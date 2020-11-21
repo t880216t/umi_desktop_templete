@@ -51,7 +51,7 @@ export default class Page extends Component {
               <DeviceCard
                 deviceInfo={serial}
                 onClick={
-                  () => history.push(`/devicesPage/detail?deviceId=${serial.id}&localPort=${serial.localPort}&currentIp=${serial.currentIp}`)
+                  () => history.push(`/devicesPage/detail?deviceId=${serial.id}&localPort=${serial.localPort}&currentIp=${serial.currentIp}&width=${serial.width}&height=${serial.height}`)
                 }
               />
             </List.Item>

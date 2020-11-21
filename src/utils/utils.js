@@ -21,3 +21,6 @@ export const isAntDesignProOrDev = () => {
   return isAntDesignPro();
 };
 export const getPageQuery = () => parse(window.location.href.split('?')[1]);
+export const findLast = (array, fn) => {
+  return array.reverse().find(fn);
+}

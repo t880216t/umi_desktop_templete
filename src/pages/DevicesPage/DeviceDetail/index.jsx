@@ -12,9 +12,15 @@ import {
 
 import DeviceList from '../DeviceList'
 import SyncDeviceList from '../SyncDeviceList'
-
+import {
+  getXPath,
+  getXPathLite
+} from './common/xpath';
+import { getNodePathByXY } from './common/bounds';
 import styles from './index.less'
 
+const xml2map = require('xml2map');
+const _ = require('lodash')
 
 @connect(({ global, loading }) => ({
   global,
@@ -28,16 +34,17 @@ export default class Page extends Component {
       showSelect: false,
       selectedDevices: [],
       syncDevices: [],
+      pageNode: null,
     }
     this.miniCapWs = null
     this.miniTouchWs = null
   }
 
   componentDidMount() {
-    const { deviceId, localPort, currentIp } = this.props.location.query
+    const { deviceId, localPort, currentIp, width, height } = this.props.location.query
     const address = `${currentIp}:${localPort}`
     this.setState({
-      deviceId, address
+      deviceId, address, width, height
     },() => {
       this.getRotattion(address)
       this.syncModalDisplay(deviceId, address)
@@ -68,6 +75,61 @@ export default class Page extends Component {
     })
   }
 
+  handleHierarchy = (deviceUrl) => {
+    fetch(`http://${deviceUrl}/dump/hierarchy`, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+    })
+      .then(res => res.json())
+      .then(response => {
+        var xml = response.result;
+        xml = xml.replace(/content-desc=\"\"/g, 'content-desc="null"');
+        const {hierarchy} = xml2map.tojson(xml);
+        const adaptor = function(node) {
+          if (node.bounds) {
+            const bounds = node.bounds.match(/[\d\.]+/g);
+            node.bounds = [
+              ~~bounds[0],
+              ~~bounds[1],
+              bounds[2] - bounds[0],
+              bounds[3] - bounds[1]
+            ];
+          }
+
+          if (node.node) {
+            node.nodes = node.node.length ? node.node : [node.node];
+            node.nodes.forEach(adaptor);
+            delete node.node;
+          }
+
+          return node;
+        };
+
+        let data;
+
+        const matchedNode = _.findLast(hierarchy.node, i => {
+          return (
+            i !== null &&
+            typeof i === 'object' &&
+            i.package !== 'com.android.systemui'
+          );
+        });
+
+        const FilterMatchedNode = _.findLast(matchedNode, i => {
+          return (
+            i['resource-id'] !== 'android:id/statusBarBackground'
+          )
+        })
+
+        try {
+          data = adaptor(FilterMatchedNode);
+        } finally {
+          this.setState({pageNode: data})
+        }
+      })
+  }
+
   handleShowSelect = () => {
     this.setState({showSelect: true})
   }
@@ -86,6 +148,18 @@ export default class Page extends Component {
     this.setState({
       showSelect: false,
     })
+  }
+
+  handleClick = (location) => {
+    const {width, height, pageNode} = this.state;
+    const { operation, xP, yP} = location
+    const x = width*xP
+    const y = height*yP
+    if (pageNode && operation === 'u' && !(pageNode instanceof Array)){
+      const nodePath = getNodePathByXY(pageNode, x, y);
+      console.log(getXPath(pageNode, nodePath))
+      console.log(getXPathLite(pageNode, nodePath))
+    }
   }
 
 
@@ -235,11 +309,12 @@ export default class Page extends Component {
         xP: scaled.xP,
         yP: scaled.yP,
       })
+      this.handleClick({operation, xP: scaled.xP, yP: scaled.yP})
       ws.send(location)
       ws.send(JSON.stringify({ operation: 'c' }))
       const {selectedDevices, showSelect} = this.state;
       if (selectedDevices&&!showSelect){
-        selectedDevices & selectedDevices.forEach(id => {
+        selectedDevices.forEach(id => {
           if (this[`ws${id}`]){
             this[`ws${id}`].send(location)
             this[`ws${id}`].send(JSON.stringify({ operation: 'c' }))
@@ -337,6 +412,11 @@ export default class Page extends Component {
             </Tooltip>
             <Tooltip placement="right" title="选择设备，进行同步操作">
               <Card.Grid className={styles.actionB} onClick={() => this.handleShowSelect()} style={{textAlign: 'center', width: '98%'}}>
+                <OrderedListOutlined style={{fontSize: 24}} />
+              </Card.Grid>
+            </Tooltip>
+            <Tooltip placement="right" title="选择设备，进行同步操作">
+              <Card.Grid className={styles.actionB} onClick={() => this.handleHierarchy(address)} style={{textAlign: 'center', width: '98%'}}>
                 <OrderedListOutlined style={{fontSize: 24}} />
               </Card.Grid>
             </Tooltip>

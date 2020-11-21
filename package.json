@@ -84,6 +84,7 @@
     "unzip": "^0.1.11",
     "use-merge-value": "^1.0.1",
     "wait-on": "^5.2.0",
+    "xlogger": "^1.0.6",
     "xml2map": "^1.0.2"
   },
   "devDependencies": {
