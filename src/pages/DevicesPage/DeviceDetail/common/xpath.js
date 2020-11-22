@@ -129,3 +129,24 @@ export function getXPath(tree, nodePath) {
 
   return `//${array.join('/')}`;
 };
+
+export function getNodeByPath(tree, nodePath) {
+  let lastNode = null;
+  let node = [tree];
+  try{
+    const paths = [0, ...nodePath];
+
+    for (let i = 0; i < paths.length; i++) {
+      if (node){
+        let current = node[paths[i]];
+        lastNode = current
+        node = current.nodes;
+      }
+    }
+  }catch (e) {
+    console.log(nodePath)
+    console.log(e)
+  }
+
+  return lastNode;
+};

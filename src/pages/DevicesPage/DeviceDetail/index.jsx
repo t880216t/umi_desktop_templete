@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Row, Col, Card, Tooltip } from 'antd';
+import { Row, Col, Card, Tooltip, Menu } from 'antd';
 import { connect } from 'umi';
 import {
   SwitcherOutlined,
@@ -9,14 +9,17 @@ import {
   RetweetOutlined,
   OrderedListOutlined,
 } from '@ant-design/icons';
+import { ContextMenuTrigger, ContextMenu } from 'react-contextmenu-lite';
 
 import DeviceList from '../DeviceList'
 import SyncDeviceList from '../SyncDeviceList'
 import {
   getXPath,
-  getXPathLite
+  getXPathLite,
+  getNodeByPath,
 } from './common/xpath';
 import { getNodePathByXY } from './common/bounds';
+import {debounce} from '../../../utils/utils'
 import styles from './index.less'
 
 const xml2map = require('xml2map');
@@ -65,7 +68,60 @@ export default class Page extends Component {
     if (this.reconnectMiniTouchTimer){
       clearInterval(this.reconnectMiniTouchTimer)
     }
+    if (this.deviceNode){
+      this.deviceNode.removeEventListener('mousemove', this.handleMouseMoveInDevice)
+    }
   }
+
+  linstenMouseMoveInDeviceWarp = () => {
+    if (this.deviceNode) {
+      this.deviceNode.addEventListener('mousemove', this.handleMouseMoveInDevice)
+    }
+  }
+
+  handleMouseMoveInDevice = debounce((event) => {
+    let e = event;
+    if (e.originalEvent) {
+      e = e.originalEvent
+    }
+    e.preventDefault()
+    const {height, width, pageNode} = this.state;
+    const contextNode = document.getElementById('mainDevice')
+    if (contextNode){
+      console.log(contextNode.style.opacity)
+    }
+    if (contextNode && contextNode.style.opacity == 0){
+      if (pageNode && height && width){
+        const x = e.offsetX;
+        const y = e.offsetY
+        const w = e.target.clientWidth;
+        const h = e.target.clientHeight
+        const scaled = this.coords(w, h, x, y, this.rotation);
+        const poinstX = width*(scaled.xP)
+        const poinstY = height*(scaled.yP)
+        const nodePath = getNodePathByXY(pageNode, poinstX, poinstY);
+        if (nodePath){
+          const node = getNodeByPath(pageNode, nodePath)
+          if (this.deviceNode && node){
+            const {bounds, text} = node
+            const resourceId = node['resource-id']
+            const containWidth = this.deviceNode.getBoundingClientRect().width
+            const containHeight = this.deviceNode.getBoundingClientRect().height
+            this.setState({
+              currentNode : {
+                name: resourceId || text,
+                bounds: [
+                containWidth * (bounds[0]/width),
+                containHeight * (bounds[1]/height),
+                containWidth * (bounds[2]/width),
+                containHeight * (bounds[3]/height),
+              ]}
+            })
+          }
+        }
+      }
+    }
+  },100)
 
   getRotattion = (deviceUrl) => {
     fetch(`http://${deviceUrl}/info/rotation`, {
@@ -125,7 +181,9 @@ export default class Page extends Component {
         try {
           data = adaptor(FilterMatchedNode);
         } finally {
-          this.setState({pageNode: data})
+          this.setState({pageNode: data}, () => {
+            this.linstenMouseMoveInDeviceWarp()
+          })
         }
       })
   }
@@ -157,6 +215,7 @@ export default class Page extends Component {
     const y = height*yP
     if (pageNode && operation === 'u' && !(pageNode instanceof Array)){
       const nodePath = getNodePathByXY(pageNode, x, y);
+
       console.log(getXPath(pageNode, nodePath))
       console.log(getXPathLite(pageNode, nodePath))
     }
@@ -324,16 +383,25 @@ export default class Page extends Component {
     }
 
     function mouseMoveListener(event) {
+      if (event.button !== 0) {
+        return
+      }
       touchSync('m', event)
     }
 
     function mouseUpListener(event) {
+      if (event.button !== 0) {
+        return
+      }
       touchSync('u', event)
       element.removeEventListener('mousemove', mouseMoveListener);
       document.removeEventListener('mouseup', mouseUpListener);
     }
 
     function mouseDownListener(event) {
+      if (event.button !== 0) {
+        return
+      }
       touchSync('d', event)
       element.addEventListener('mousemove', mouseMoveListener);
       document.addEventListener('mouseup', mouseUpListener)
@@ -366,18 +434,43 @@ export default class Page extends Component {
   }
 
   render() {
-    const { address, deviceId, showSelect, selectedDevices, syncDevices } = this.state;
+    const { address, deviceId, showSelect, selectedDevices, syncDevices, currentNode } = this.state;
     return (
       <div className={styles.detailWarp} >
         <div className={styles.deviceContain}>
-          <img
-            ref={ref => {
-              this[`modal${deviceId}`] = ref;
-            }}
-            draggable={false}
-            src={`http://${address}/screenshot?t=${new Date().getTime()}`}
-            alt=""
-          />
+          <ContextMenuTrigger id="mainDevice">
+            <div ref={ref => {this.deviceNode = ref}} className={styles.deviceNode}>
+              <img
+                ref={ref => {
+                  this[`modal${deviceId}`] = ref;
+                }}
+                draggable={false}
+                src={`http://${address}/screenshot?t=${new Date().getTime()}`}
+                alt=""
+              />
+              <div
+                title={currentNode ? currentNode.name : null}
+                className={styles.hlightBox}
+                style={
+                  currentNode ?
+                    {left: currentNode.bounds[0], top: currentNode.bounds[1],width: currentNode.bounds[2],height : currentNode.bounds[3]}
+                    :
+                    {display: 'none'}} />
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenu id="mainDevice">
+            <Menu>
+              <Menu.SubMenu title="同步点击">
+                <Menu.Item>单次点击</Menu.Item>
+                <Menu.Item>连续点击</Menu.Item>
+              </Menu.SubMenu>
+              <Menu.Item>同步输入</Menu.Item>
+              <Menu.SubMenu title="同步校验">
+                <Menu.Item>单个元素</Menu.Item>
+                <Menu.Item>整个页面</Menu.Item>
+              </Menu.SubMenu>
+            </Menu>
+          </ContextMenu>
           <div className={styles.actionContain}>
             <Row>
               <Col span={6}>

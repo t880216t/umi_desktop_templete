@@ -354,6 +354,13 @@ async function createTcpProxy(localport, remotehost, remoteport){
       localsocket.resume();
     });
 
+    localsocket.on('error', function(had_error) {
+      console.log("%s:%d - had error",
+        localsocket.remoteAddress,
+        localsocket.remotePort
+      );
+    });
+
     localsocket.on('close', function(had_error) {
       console.log("%s:%d - closing remote",
         localsocket.remoteAddress,

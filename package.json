@@ -77,6 +77,7 @@
     "progress-stream": "^2.0.0",
     "qs": "^6.9.0",
     "react": "^16.8.6",
+    "react-contextmenu-lite": "^1.0.9",
     "react-dom": "^16.8.6",
     "react-helmet-async": "^1.0.4",
     "umi": "^3.2.14",
