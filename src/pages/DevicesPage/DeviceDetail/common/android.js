@@ -56,6 +56,35 @@ export async function getDeviceHierarchy(deviceUrl) {
     })
 };
 
+export async function clickByNode(deviceUrl, node) {
+  let params = {
+    "mask": 2097153,
+    "childOrSibling": [],
+    "childOrSiblingSelector": [],
+  }
+  if (node.hasOwnProperty('resource-id')){
+    params.resourceId = node['resource-id']
+  }
+  if (node.hasOwnProperty('text')){
+    params.resourceId = node.text
+  }
+  fetch(`http://${deviceUrl}/jsonrpc/0`, {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
+    body: JSON.stringify({
+      "jsonrpc": "2.0",
+      "id": "06836478944c6fcd2f06d05ba105dd83",
+      "method": "objInfo",
+      "params": [params, 20000]
+    })
+  })
+    .then(res => res.json())
+    .then(resp => {
+      console.log(resp)
+    })
+};
+
 export function getNodeByNode(treeNode, needNode) {
   let matchedNode = null;
   const adaptor = function(node) {

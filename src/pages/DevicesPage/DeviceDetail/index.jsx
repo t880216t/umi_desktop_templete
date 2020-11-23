@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Row, Col, Card, Tooltip, Menu } from 'antd';
+import { Row, Col, Card, Tooltip, Menu, Spin } from 'antd';
 import { connect } from 'umi';
 import {
   SelectOutlined,
@@ -20,7 +20,7 @@ import {
   getNodeByPath,
 } from './common/xpath';
 import { getNodePathByXY } from './common/bounds';
-import { getDeviceHierarchy, getNodeByNode } from './common/android';
+import { clickByNode, getNodeByNode } from './common/android';
 import {debounce} from '../../../utils/utils'
 import styles from './index.less'
 
@@ -39,6 +39,7 @@ export default class Page extends Component {
       address: '',
       getNodeing: false,
       showSelect: false,
+      herSpinning: false,
       selectedDevices: [],
       syncDevices: [],
       pageNode: null,
@@ -125,7 +126,12 @@ export default class Page extends Component {
   },100)
 
   handleGetNode = (address) => {
-    this.setState({getNodeing: !this.state.getNodeing},() => this.handleHierarchy(address))
+    const {getNodeing} = this.state;
+    if (getNodeing){
+      this.setState({getNodeing: false, currentNode: null})
+    }else {
+      this.setState({getNodeing: true},() => this.handleHierarchy(address))
+    }
   }
 
   getRotattion = (deviceUrl) => {
@@ -137,60 +143,62 @@ export default class Page extends Component {
   }
 
   handleHierarchy = (deviceUrl) => {
-    fetch(`http://${deviceUrl}/dump/hierarchy`, {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-cache',
-    })
-      .then(res => res.json())
-      .then(response => {
-        var xml = response.result;
-        xml = xml.replace(/content-desc=\"\"/g, 'content-desc="null"');
-        const {hierarchy} = xml2map.tojson(xml);
-        const adaptor = function(node) {
-          if (node.bounds) {
-            const bounds = node.bounds.match(/[\d\.]+/g);
-            node.bounds = [
-              ~~bounds[0],
-              ~~bounds[1],
-              bounds[2] - bounds[0],
-              bounds[3] - bounds[1]
-            ];
-          }
-
-          if (node.node) {
-            node.nodes = node.node.length ? node.node : [node.node];
-            node.nodes.forEach(adaptor);
-            delete node.node;
-          }
-
-          return node;
-        };
-
-        let data;
-
-        const matchedNode = _.findLast(hierarchy.node, i => {
-          return (
-            i !== null &&
-            typeof i === 'object' &&
-            i.package !== 'com.android.systemui'
-          );
-        });
-
-        const FilterMatchedNode = _.findLast(matchedNode, i => {
-          return (
-            i['resource-id'] !== 'android:id/statusBarBackground'
-          )
-        })
-
-        try {
-          data = adaptor(FilterMatchedNode);
-        } finally {
-          this.setState({pageNode: data}, () => {
-            this.linstenMouseMoveInDeviceWarp()
-          })
-        }
+    this.setState({herSpinning: true},()=>{
+      fetch(`http://${deviceUrl}/dump/hierarchy`, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
       })
+        .then(res => res.json())
+        .then(response => {
+          var xml = response.result;
+          xml = xml.replace(/content-desc=\"\"/g, 'content-desc="null"');
+          const {hierarchy} = xml2map.tojson(xml);
+          const adaptor = function(node) {
+            if (node.bounds) {
+              const bounds = node.bounds.match(/[\d\.]+/g);
+              node.bounds = [
+                ~~bounds[0],
+                ~~bounds[1],
+                bounds[2] - bounds[0],
+                bounds[3] - bounds[1]
+              ];
+            }
+
+            if (node.node) {
+              node.nodes = node.node.length ? node.node : [node.node];
+              node.nodes.forEach(adaptor);
+              delete node.node;
+            }
+
+            return node;
+          };
+
+          let data;
+
+          const matchedNode = _.findLast(hierarchy.node, i => {
+            return (
+              i !== null &&
+              typeof i === 'object' &&
+              i.package !== 'com.android.systemui'
+            );
+          });
+
+          const FilterMatchedNode = _.findLast(matchedNode, i => {
+            return (
+              i['resource-id'] !== 'android:id/statusBarBackground'
+            )
+          })
+
+          try {
+            data = adaptor(FilterMatchedNode);
+          } finally {
+            this.setState({pageNode: data,  currentNode: null, herSpinning: false}, () => {
+              this.linstenMouseMoveInDeviceWarp()
+            })
+          }
+        })
+    })
   }
 
   handleShowSelect = () => {
@@ -220,8 +228,10 @@ export default class Page extends Component {
     const y = height*yP
     if (pageNode && operation === 'u' && !(pageNode instanceof Array)){
       const nodePath = getNodePathByXY(pageNode, x, y);
-      console.log(getXPath(pageNode, nodePath))
-      console.log(getXPathLite(pageNode, nodePath))
+      if (nodePath){
+        console.log(getXPath(pageNode, nodePath))
+        console.log(getXPathLite(pageNode, nodePath))
+      }
     }
   }
 
@@ -374,7 +384,7 @@ export default class Page extends Component {
       })
       ws.send(location)
       ws.send(JSON.stringify({ operation: 'c' }))
-      // this.handleClick({operation, xP: scaled.xP, yP: scaled.yP}) // 获取点击元素定位数据
+      this.handleClick({operation, xP: scaled.xP, yP: scaled.yP}) // 获取点击元素定位数据
       // const {selectedDevices, showSelect} = this.state;  // 坐标同步点击
       // if (selectedDevices&&!showSelect){
       //   selectedDevices.forEach(id => {
@@ -461,32 +471,40 @@ export default class Page extends Component {
       this.postMessageToDevice(address, currentNode.bounds)
       if (currentNode && syncDevices) {
         syncDevices.forEach(async device => {
-          const address = `${device.currentIp}:${device.localPort}`
-          const deviceHierarchyNode = await getDeviceHierarchy(address)
-          const node = await getNodeByNode(deviceHierarchyNode, currentNode)
-          if (node) {
-            this.postMessageToDevice(address, node.bounds)
-          }
+          const deviceAddress = `${device.currentIp}:${device.localPort}`
+          const startTime = new Date().getTime()
+          clickByNode(deviceAddress, currentNode)
+
+
+          // const deviceHierarchyNode = await getDeviceHierarchy(deviceAddress)
+          const endTime = new Date().getTime()
+          console.log('dur', endTime - startTime)
+          // const node = await getNodeByNode(deviceHierarchyNode, currentNode)
+          // if (node) {
+          //   this.postMessageToDevice(deviceAddress, node.bounds)
+          // }
         })
       }
     }
   }
 
   render() {
-    const { address, deviceId, showSelect, selectedDevices, syncDevices, currentNode, getNodeing } = this.state;
+    const { address, deviceId, showSelect, selectedDevices, syncDevices, currentNode, getNodeing, herSpinning } = this.state;
     return (
       <div className={styles.detailWarp} >
         <div className={styles.deviceContain}>
           <ContextMenuTrigger id="mainDevice">
             <div ref={ref => {this.deviceNode = ref}} className={styles.deviceNode}>
-              <img
-                ref={ref => {
-                  this[`modal${deviceId}`] = ref;
-                }}
-                draggable={false}
-                src={`http://${address}/screenshot?t=${new Date().getTime()}`}
-                alt=""
-              />
+              <Spin spinning={herSpinning}>
+                <img
+                  ref={ref => {
+                    this[`modal${deviceId}`] = ref;
+                  }}
+                  draggable={false}
+                  src={`http://${address}/screenshot?t=${new Date().getTime()}`}
+                  alt=""
+                />
+              </Spin>
               <div
                 title={currentNode ? currentNode.name : null}
                 className={styles.hlightBox}
