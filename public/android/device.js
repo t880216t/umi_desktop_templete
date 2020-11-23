@@ -355,10 +355,11 @@ async function createTcpProxy(localport, remotehost, remoteport){
     });
 
     localsocket.on('error', function(had_error) {
-      console.log("%s:%d - had error",
-        localsocket.remoteAddress,
-        localsocket.remotePort
-      );
+      console.log("%s:%d - had error", had_error);
+    });
+
+    remotesocket.on('error', function(had_error) {
+      console.log("%s:%d - had error", had_error);
     });
 
     localsocket.on('close', function(had_error) {

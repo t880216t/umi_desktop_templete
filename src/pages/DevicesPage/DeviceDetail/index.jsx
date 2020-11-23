@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Row, Col, Card, Tooltip, Menu } from 'antd';
 import { connect } from 'umi';
 import {
+  SelectOutlined,
   SwitcherOutlined,
   PoweroffOutlined,
   LeftOutlined,
@@ -19,6 +20,7 @@ import {
   getNodeByPath,
 } from './common/xpath';
 import { getNodePathByXY } from './common/bounds';
+import { getDeviceHierarchy, getNodeByNode } from './common/android';
 import {debounce} from '../../../utils/utils'
 import styles from './index.less'
 
@@ -33,7 +35,9 @@ export default class Page extends Component {
   constructor(props){
     super(props);
     this.state = {
+      deviceId: '',
       address: '',
+      getNodeing: false,
       showSelect: false,
       selectedDevices: [],
       syncDevices: [],
@@ -87,9 +91,6 @@ export default class Page extends Component {
     e.preventDefault()
     const {height, width, pageNode} = this.state;
     const contextNode = document.getElementById('mainDevice')
-    if (contextNode){
-      console.log(contextNode.style.opacity)
-    }
     if (contextNode && contextNode.style.opacity == 0){
       if (pageNode && height && width){
         const x = e.offsetX;
@@ -102,26 +103,30 @@ export default class Page extends Component {
         const nodePath = getNodePathByXY(pageNode, poinstX, poinstY);
         if (nodePath){
           const node = getNodeByPath(pageNode, nodePath)
-          if (this.deviceNode && node){
+          if (this.deviceNode && node && this.deviceNode.getBoundingClientRect){
             const {bounds, text} = node
             const resourceId = node['resource-id']
             const containWidth = this.deviceNode.getBoundingClientRect().width
             const containHeight = this.deviceNode.getBoundingClientRect().height
-            this.setState({
-              currentNode : {
-                name: resourceId || text,
-                bounds: [
-                containWidth * (bounds[0]/width),
-                containHeight * (bounds[1]/height),
-                containWidth * (bounds[2]/width),
-                containHeight * (bounds[3]/height),
-              ]}
-            })
+            let currentNode = node;
+            currentNode.nodePath = nodePath
+            currentNode.name = resourceId || text
+            currentNode.hlightBounds = [
+              containWidth * (bounds[0]/width),
+              containHeight * (bounds[1]/height),
+              containWidth * (bounds[2]/width),
+              containHeight * (bounds[3]/height),
+            ]
+            this.setState({currentNode})
           }
         }
       }
     }
   },100)
+
+  handleGetNode = (address) => {
+    this.setState({getNodeing: !this.state.getNodeing},() => this.handleHierarchy(address))
+  }
 
   getRotattion = (deviceUrl) => {
     fetch(`http://${deviceUrl}/info/rotation`, {
@@ -215,7 +220,6 @@ export default class Page extends Component {
     const y = height*yP
     if (pageNode && operation === 'u' && !(pageNode instanceof Array)){
       const nodePath = getNodePathByXY(pageNode, x, y);
-
       console.log(getXPath(pageNode, nodePath))
       console.log(getXPathLite(pageNode, nodePath))
     }
@@ -368,18 +372,18 @@ export default class Page extends Component {
         xP: scaled.xP,
         yP: scaled.yP,
       })
-      this.handleClick({operation, xP: scaled.xP, yP: scaled.yP})
       ws.send(location)
       ws.send(JSON.stringify({ operation: 'c' }))
-      const {selectedDevices, showSelect} = this.state;
-      if (selectedDevices&&!showSelect){
-        selectedDevices.forEach(id => {
-          if (this[`ws${id}`]){
-            this[`ws${id}`].send(location)
-            this[`ws${id}`].send(JSON.stringify({ operation: 'c' }))
-          }
-        })
-      }
+      // this.handleClick({operation, xP: scaled.xP, yP: scaled.yP}) // 获取点击元素定位数据
+      // const {selectedDevices, showSelect} = this.state;  // 坐标同步点击
+      // if (selectedDevices&&!showSelect){
+      //   selectedDevices.forEach(id => {
+      //     if (this[`ws${id}`]){
+      //       this[`ws${id}`].send(location)
+      //       this[`ws${id}`].send(JSON.stringify({ operation: 'c' }))
+      //     }
+      //   })
+      // }
     }
 
     function mouseMoveListener(event) {
@@ -433,8 +437,43 @@ export default class Page extends Component {
       })
   }
 
+  postMessageToDevice = (deviceAddress, bounds) => {
+    const x = bounds[0] + (bounds[2]/2)
+    const y = bounds[1] + (bounds[3]/2)
+    console.log(x, y)
+    const cmd = `input tap ${x} ${y}`
+    fetch(`http://${deviceAddress}/shell?command=${cmd}`, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-cache',
+    })
+      .then(() => {
+        const { getNodeing, address } = this.state;
+        if (getNodeing && address === deviceAddress){
+          this.handleHierarchy(address)
+        }
+      })
+  }
+
+  handleOneClick = () => {
+    const { currentNode, syncDevices, address } = this.state;
+    if (currentNode) {
+      this.postMessageToDevice(address, currentNode.bounds)
+      if (currentNode && syncDevices) {
+        syncDevices.forEach(async device => {
+          const address = `${device.currentIp}:${device.localPort}`
+          const deviceHierarchyNode = await getDeviceHierarchy(address)
+          const node = await getNodeByNode(deviceHierarchyNode, currentNode)
+          if (node) {
+            this.postMessageToDevice(address, node.bounds)
+          }
+        })
+      }
+    }
+  }
+
   render() {
-    const { address, deviceId, showSelect, selectedDevices, syncDevices, currentNode } = this.state;
+    const { address, deviceId, showSelect, selectedDevices, syncDevices, currentNode, getNodeing } = this.state;
     return (
       <div className={styles.detailWarp} >
         <div className={styles.deviceContain}>
@@ -453,24 +492,23 @@ export default class Page extends Component {
                 className={styles.hlightBox}
                 style={
                   currentNode ?
-                    {left: currentNode.bounds[0], top: currentNode.bounds[1],width: currentNode.bounds[2],height : currentNode.bounds[3]}
+                    {left: currentNode.hlightBounds[0], top: currentNode.hlightBounds[1],width: currentNode.hlightBounds[2],height : currentNode.hlightBounds[3]}
                     :
                     {display: 'none'}} />
             </div>
           </ContextMenuTrigger>
-          <ContextMenu id="mainDevice">
-            <Menu>
-              <Menu.SubMenu title="同步点击">
-                <Menu.Item>单次点击</Menu.Item>
-                <Menu.Item>连续点击</Menu.Item>
-              </Menu.SubMenu>
-              <Menu.Item>同步输入</Menu.Item>
-              <Menu.SubMenu title="同步校验">
-                <Menu.Item>单个元素</Menu.Item>
-                <Menu.Item>整个页面</Menu.Item>
-              </Menu.SubMenu>
-            </Menu>
-          </ContextMenu>
+          {getNodeing && (
+            <ContextMenu id="mainDevice">
+              <Menu>
+                <Menu.Item onClick={() => this.handleOneClick()}>单次点击</Menu.Item>
+                <Menu.Item>同步输入</Menu.Item>
+                <Menu.SubMenu title="同步校验">
+                  <Menu.Item>单个元素</Menu.Item>
+                  <Menu.Item>整个页面</Menu.Item>
+                </Menu.SubMenu>
+              </Menu>
+            </ContextMenu>
+          )}
           <div className={styles.actionContain}>
             <Row>
               <Col span={6}>
@@ -498,6 +536,11 @@ export default class Page extends Component {
         </div>
         <div className={styles.actionContain1}>
           <Card bordered={false} bodyStyle={{maxHeight: '95vh', padding: 5,  width: '120%', overflowY: 'scroll'}}>
+            <Tooltip placement="right" title="监测页面结构数据">
+              <Card.Grid className={styles.actionB} onClick={() => this.handleGetNode(address)} style={{textAlign: 'center', width: '98%'}}>
+                <SelectOutlined style={{fontSize: 24, color: getNodeing ? 'blue': ''}} />
+              </Card.Grid>
+            </Tooltip>
             <Tooltip placement="right" title="刷新主控机屏幕旋转位置">
               <Card.Grid className={styles.actionB} onClick={() => this.getRotattion(address)} style={{textAlign: 'center', width: '98%'}}>
                 <RetweetOutlined style={{fontSize: 24}} />
@@ -505,11 +548,6 @@ export default class Page extends Component {
             </Tooltip>
             <Tooltip placement="right" title="选择设备，进行同步操作">
               <Card.Grid className={styles.actionB} onClick={() => this.handleShowSelect()} style={{textAlign: 'center', width: '98%'}}>
-                <OrderedListOutlined style={{fontSize: 24}} />
-              </Card.Grid>
-            </Tooltip>
-            <Tooltip placement="right" title="选择设备，进行同步操作">
-              <Card.Grid className={styles.actionB} onClick={() => this.handleHierarchy(address)} style={{textAlign: 'center', width: '98%'}}>
                 <OrderedListOutlined style={{fontSize: 24}} />
               </Card.Grid>
             </Tooltip>
