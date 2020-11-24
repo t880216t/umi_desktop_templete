@@ -78,6 +78,7 @@ export default defineConfig({
               name: '同步列表',
               icon: 'DeploymentUnitOutlined',
               component: './SyncPage',
+              hideInMenu: true,
             },
             {
               path: '/admin',

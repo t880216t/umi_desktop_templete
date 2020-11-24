@@ -31,24 +31,29 @@ export function getNodePathByXY(tree, x, y) {
   let bestPath = null;
 
   function walk(node, path) {
-    let bounds = node.bounds;
-    let inRect = isInRect(x, y, bounds);
+    if (node && node.bounds){
+      let bounds = node.bounds;
+      let inRect = isInRect(x, y, bounds);
 
-    if (inRect) {
-      if (!bestBounds || compareBoundsSize(bestBounds, bounds)) {
-        bestBounds = bounds;
-        bestPath = path;
-      }
+      if (inRect) {
+        if (!bestBounds || compareBoundsSize(bestBounds, bounds)) {
+          bestBounds = bounds;
+          bestPath = path;
+        }
 
-      if (node.nodes) {
-        node.nodes.forEach((child, index) => {
-          walk(child, path.concat([index]));
-        });
+        if (node.nodes) {
+          node.nodes.forEach((child, index) => {
+            walk(child, path.concat([index]));
+          });
+        }
       }
     }
+
   }
 
-  walk(tree, []);
+  tree && tree.forEach((node,index) => walk(node, [index]))
+
+  // walk(tree, []);
 
   return bestPath;
 };

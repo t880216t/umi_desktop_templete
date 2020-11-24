@@ -294,7 +294,7 @@ async function stopAgent(device) {
 }
 
 async function startAgent(device) {
-  return client.shell(device.id, '/data/local/tmp/atx-agent server --nouia -d')
+  return client.shell(device.id, '/data/local/tmp/atx-agent server -d')
     .then(adb.util.readAll)
     .then(function(output) {
       console.log('[%s] %s', device.id, output.toString().trim())

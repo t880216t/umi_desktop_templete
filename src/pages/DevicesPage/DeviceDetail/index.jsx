@@ -19,7 +19,7 @@ import {
   getXPathLite,
   getNodeByPath,
 } from './common/xpath';
-import { getNodePathByXY } from './common/bounds';
+import {compareBoundsSize, getNodePathByXY, isInRect} from './common/bounds';
 import { clickByNode, getNodeByNode } from './common/android';
 import {debounce} from '../../../utils/utils'
 import styles from './index.less'
@@ -101,26 +101,36 @@ export default class Page extends Component {
         const scaled = this.coords(w, h, x, y, this.rotation);
         const poinstX = width*(scaled.xP)
         const poinstY = height*(scaled.yP)
-        const nodePath = getNodePathByXY(pageNode, poinstX, poinstY);
-        if (nodePath){
-          const node = getNodeByPath(pageNode, nodePath)
-          if (this.deviceNode && node && this.deviceNode.getBoundingClientRect){
-            const {bounds, text} = node
-            const resourceId = node['resource-id']
-            const containWidth = this.deviceNode.getBoundingClientRect().width
-            const containHeight = this.deviceNode.getBoundingClientRect().height
-            let currentNode = node;
-            currentNode.nodePath = nodePath
-            currentNode.name = resourceId || text
-            currentNode.hlightBounds = [
-              containWidth * (bounds[0]/width),
-              containHeight * (bounds[1]/height),
-              containWidth * (bounds[2]/width),
-              containHeight * (bounds[3]/height),
-            ]
-            this.setState({currentNode})
+        if (pageNode && poinstX >= 0 && poinstY >= 0){
+          const nodePath = getNodePathByXY(pageNode, poinstX, poinstY);
+          if (nodePath){
+            const node = getNodeByPath(pageNode, nodePath)
+            if (this.deviceNode && node && this.deviceNode.getBoundingClientRect){
+              if (node.bounds) {
+                const {bounds, text} = node
+                const resourceId = node['resource-id']
+                const containWidth = this.deviceNode.getBoundingClientRect().width
+                const containHeight = this.deviceNode.getBoundingClientRect().height
+                let currentNode = node;
+                currentNode.nodePath = nodePath
+                currentNode.name = resourceId || text
+                currentNode.hlightBounds = [
+                  containWidth * (bounds[0]/width),
+                  containHeight * (bounds[1]/height),
+                  containWidth * (bounds[2]/width),
+                  containHeight * (bounds[3]/height),
+                ]
+                this.setState({currentNode})
+              }
+            }
           }
+        }else {
+          console.log('some thing wrong pageNode', pageNode)
+          console.log('some thing wrong poinstX', poinstX)
+          console.log('some thing wrong poinstY', poinstY)
         }
+      }else {
+        console.log('some thing wrong pageNode', pageNode)
       }
     }
   },100)
@@ -151,7 +161,7 @@ export default class Page extends Component {
       })
         .then(res => res.json())
         .then(response => {
-          var xml = response.result;
+          let xml = response.result;
           xml = xml.replace(/content-desc=\"\"/g, 'content-desc="null"');
           const {hierarchy} = xml2map.tojson(xml);
           const adaptor = function(node) {
@@ -164,36 +174,36 @@ export default class Page extends Component {
                 bounds[3] - bounds[1]
               ];
             }
-
             if (node.node) {
-              node.nodes = node.node.length ? node.node : [node.node];
+              if (node.node instanceof Array){
+                node.nodes = node.node;
+              }else {
+                node.nodes = [node.node];
+              }
               node.nodes.forEach(adaptor);
               delete node.node;
             }
-
             return node;
           };
-
           let data;
 
-          const matchedNode = _.findLast(hierarchy.node, i => {
-            return (
-              i !== null &&
-              typeof i === 'object' &&
-              i.package !== 'com.android.systemui'
-            );
-          });
-
-          const FilterMatchedNode = _.findLast(matchedNode, i => {
-            return (
-              i['resource-id'] !== 'android:id/statusBarBackground'
-            )
-          })
+          let rootNode = []
+          if (hierarchy.node instanceof Array){
+            rootNode = hierarchy.node;
+          }else {
+            rootNode = [hierarchy.node];
+          }
+          rootNode = rootNode.filter(i => (
+            i !== null &&
+            typeof i === 'object' &&
+            i.package !== 'com.android.systemui'
+          ))
 
           try {
-            data = adaptor(FilterMatchedNode);
+            rootNode && rootNode.forEach(node => adaptor(node))
+            console.log(rootNode)
           } finally {
-            this.setState({pageNode: data,  currentNode: null, herSpinning: false}, () => {
+            this.setState({pageNode: rootNode,  currentNode: null, herSpinning: false}, () => {
               this.linstenMouseMoveInDeviceWarp()
             })
           }
@@ -207,11 +217,12 @@ export default class Page extends Component {
 
 
   handleSelectOk = (devices) => {
-    this.setState({syncDevices: devices, showSelect: false})
+    const { address } = this.state;
+    this.setState({syncDevices: devices, showSelect: false, getNodeing: true}, () => this.handleHierarchy(address))
   }
 
   syncTouch2Device = (id, adddres) => {
-    this.syncTouch2OneDevice(id, adddres)
+    // this.syncTouch2OneDevice(id, adddres) // 坐标点击同步
   }
 
 
@@ -226,9 +237,10 @@ export default class Page extends Component {
     const { operation, xP, yP} = location
     const x = width*xP
     const y = height*yP
-    if (pageNode && operation === 'u' && !(pageNode instanceof Array)){
+    if (pageNode && operation === 'u'){
       const nodePath = getNodePathByXY(pageNode, x, y);
       if (nodePath){
+        console.log('pageNode', pageNode)
         console.log(getXPath(pageNode, nodePath))
         console.log(getXPathLite(pageNode, nodePath))
       }
@@ -447,42 +459,26 @@ export default class Page extends Component {
       })
   }
 
-  postMessageToDevice = (deviceAddress, bounds) => {
-    const x = bounds[0] + (bounds[2]/2)
-    const y = bounds[1] + (bounds[3]/2)
-    console.log(x, y)
-    const cmd = `input tap ${x} ${y}`
-    fetch(`http://${deviceAddress}/shell?command=${cmd}`, {
-      method: 'POST',
-      mode: 'cors',
-      cache: 'no-cache',
-    })
-      .then(() => {
-        const { getNodeing, address } = this.state;
-        if (getNodeing && address === deviceAddress){
-          this.handleHierarchy(address)
-        }
-      })
+  mainDeviceCallBack = (resp) => {
+    const { address } = this.state;
+    if (resp && resp.result){
+      setInterval(() => {
+        this.handleHierarchy(address)
+      }, 500)
+    }
   }
 
-  handleOneClick = () => {
+  handleOneClick = async () => {
     const { currentNode, syncDevices, address } = this.state;
     if (currentNode) {
-      this.postMessageToDevice(address, currentNode.bounds)
+      await clickByNode(address, currentNode,this.mainDeviceCallBack)
       if (currentNode && syncDevices) {
         syncDevices.forEach(async device => {
           const deviceAddress = `${device.currentIp}:${device.localPort}`
           const startTime = new Date().getTime()
           clickByNode(deviceAddress, currentNode)
-
-
-          // const deviceHierarchyNode = await getDeviceHierarchy(deviceAddress)
           const endTime = new Date().getTime()
           console.log('dur', endTime - startTime)
-          // const node = await getNodeByNode(deviceHierarchyNode, currentNode)
-          // if (node) {
-          //   this.postMessageToDevice(deviceAddress, node.bounds)
-          // }
         })
       }
     }
@@ -519,6 +515,7 @@ export default class Page extends Component {
             <ContextMenu id="mainDevice">
               <Menu>
                 <Menu.Item onClick={() => this.handleOneClick()}>单次点击</Menu.Item>
+                <Menu.Item>同步滑动</Menu.Item>
                 <Menu.Item>同步输入</Menu.Item>
                 <Menu.SubMenu title="同步校验">
                   <Menu.Item>单个元素</Menu.Item>

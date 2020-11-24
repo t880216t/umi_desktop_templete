@@ -73,12 +73,12 @@ function scanNode(nodes) {
 
 export function getXPathLite(tree, nodePath) {
 
-  scanNode([tree]);
+  scanNode(tree);
   isScan = true;
 
   const array = [];
-  let nodes = [tree];
-  const paths = [0, ...nodePath];
+  let nodes = tree;
+  const paths = [...nodePath];
 
   let XPath = '';
 
@@ -112,8 +112,8 @@ export function getXPathLite(tree, nodePath) {
 
 export function getXPath(tree, nodePath) {
   const array = [];
-  let nodes = [tree];
-  const paths = [0, ...nodePath];
+  let nodes = tree;
+  const paths = [...nodePath];
 
   for (let i = 0; i < paths.length; i++) {
     let current = nodes[paths[i]];
@@ -132,9 +132,9 @@ export function getXPath(tree, nodePath) {
 
 export function getNodeByPath(tree, nodePath) {
   let lastNode = null;
-  let node = [tree];
+  let node = tree;
   try{
-    const paths = [0, ...nodePath];
+    const paths = nodePath;
 
     for (let i = 0; i < paths.length; i++) {
       if (node){

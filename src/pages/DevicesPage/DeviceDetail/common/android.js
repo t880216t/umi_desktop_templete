@@ -1,6 +1,34 @@
 const xml2map = require('xml2map');
 const _ = require('lodash')
 
+const fields = {
+  "text": 1,
+  "textContains": 2,
+  "textMatches": 4,
+  "textStartsWith": 8,
+  "className": 16,
+  "classNameMatches": 32,
+  "description": 64,
+  "descriptionContains": 128,
+  "descriptionMatches": 256,
+  "descriptionStartsWith": 512,
+  "checkable": 1024,
+  "checked": 2048,
+  "clickable": 4096,
+  "longClickable": 8192,
+  "scrollable": 16384,
+  "enabled": 32768,
+  "focusable": 65536,
+  "focused": 131072,
+  "selected": 262144,
+  "packageName": 524288,
+  "packageNameMatches": 1048576,
+  "resourceId": 2097152,
+  "resourceIdMatches": 4194304,
+  "index": 8388608,
+  "instance": 16777216,
+}
+
 export async function getDeviceHierarchy(deviceUrl) {
   return fetch(`http://${deviceUrl}/dump/hierarchy`, {
     method: 'GET',
@@ -24,7 +52,11 @@ export async function getDeviceHierarchy(deviceUrl) {
         }
 
         if (node.node) {
-          node.nodes = node.node.length ? node.node : [node.node];
+          if (node.node instanceof Array){
+            node.nodes = node.node;
+          }else {
+            node.nodes = [node.node];
+          }
           node.nodes.forEach(adaptor);
           delete node.node;
         }
@@ -56,9 +88,10 @@ export async function getDeviceHierarchy(deviceUrl) {
     })
 };
 
-export async function clickByNode(deviceUrl, node) {
+export async function clickByNode(deviceUrl, node, callBack = null) {
+  let mask = 0
   let params = {
-    "mask": 2097153,
+    "mask": 0,
     "childOrSibling": [],
     "childOrSiblingSelector": [],
   }
@@ -66,22 +99,57 @@ export async function clickByNode(deviceUrl, node) {
     params.resourceId = node['resource-id']
   }
   if (node.hasOwnProperty('text')){
-    params.resourceId = node.text
+    params.text = node.text
   }
+  if (node.hasOwnProperty('package')){
+    params.packageName = node.package
+  }
+  if (node.hasOwnProperty('index')){
+    params.index = node.index
+  }
+  for (var key in params) {
+    if (fields.hasOwnProperty(key)){
+      mask += fields[key]
+    }
+
+  }
+  const headers = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Accept': '*/*',
+    'Connection': 'keep-alive',
+  }
+  params.mask = mask
   fetch(`http://${deviceUrl}/jsonrpc/0`, {
     method: 'POST',
-    mode: 'cors',
-    cache: 'no-cache',
+    headers,
     body: JSON.stringify({
       "jsonrpc": "2.0",
-      "id": "06836478944c6fcd2f06d05ba105dd83",
+      "id": new Date().getTime().toString(),
       "method": "objInfo",
-      "params": [params, 20000]
+      "params": [params]
     })
   })
     .then(res => res.json())
     .then(resp => {
-      console.log(resp)
+      if (resp && resp.result){
+        const { bottom, top, left, right } = resp.result.bounds
+        const x = (bottom - top)/2 + top
+        const y = (right - left)/2 + left
+        fetch(`http://${deviceUrl}/jsonrpc/0`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({"jsonrpc": "2.0", "id": new Date().getTime().toString(), "method": "click", "params": [y, x]})
+        })
+          .then(res => res.json())
+          .then(resp => {
+            if (callBack){
+              callBack(resp)
+            }
+          })
+      }
+    })
+    .catch(e => {
+      console.log('fetch error', e)
     })
 };
 
